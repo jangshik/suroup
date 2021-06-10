@@ -154,6 +154,8 @@ def connectorCallback(physicalgraph.device.HubResponse hubResponse){
 						typeName = "suroup-gas"
 					} else if (item.type == "breaker") {
 						typeName = "suroup-breaker"
+					} else if (item.type == "esv") {
+						typeName = "suroup-esv"
 					}
 
 					def childDevice = addChildDevice("taijipp", typeName, dni, location.hubs[0].id, [
