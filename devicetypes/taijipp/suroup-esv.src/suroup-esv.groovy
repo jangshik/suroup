@@ -1,5 +1,5 @@
 /**
- *  suroup-light
+ *  suroup-esv
  *
  *  Copyright 2021 taijipp@gmail.com
  *
@@ -13,41 +13,69 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 metadata {
-	definition (name: "suroup-light", namespace: "taijipp", author: "taijipp@gmail.com", cstHandler: true, ocfDeviceType: "oic.d.light") {
-		capability "Light"
+	definition (name: "suroup-esv", namespace: "taijipp", author: "taijipp@gmail.com", vid: "generic-switch", ocfDeviceType: "oic.d.fan") {
+		capability "Fan Speed"
 		capability "Switch"
-		capability "Refresh"
 		capability "Actuator"
+		capability "Refresh"
 		capability "Sensor"
+        
+        attribute "fanLevel", "enum", ["0", "1", "2", "3"]    
+        
+        command "fanLevel", ["string"]
 	}
 
-	simulator {
-		// TODO: define status and reply messages here
-	}
 
-	tiles {
-		// TODO: define your main and details tiles here
-	}
+	simulator { }
+	preferences { }
+}
+
+def installed() {
+	log.debug "installed()"
 }
 
 // parse events into attributes
 def parse(String description) {
 	log.debug "Parsing '${description}'"
-	// TODO: handle 'switch' attribute
+	// TODO: handle attributes
 }
 
-// handle commands
-def on() {
-	log.debug "Executing 'on'"
-	// TODO: handle 'on' command
-	setProperty("switch", "on")
+def setStatus(params){
+    log.debug "${params.key} : ${params.data}"
+    
+    switch(params.key){
+    case "fanLevel":
+    	sendEvent(name:"fanLevel", value: params.data)
+    	break;
+    }
 }
+// handle commands
 
 def off() {
 	log.debug "Executing 'off'"
-	// TODO: handle 'off' command
-	setProperty("switch", "off")
+	setProperty("fanSpeed", "0")
+    //setFanSpeed(0)
 }
+
+def on() {
+	setProperty("fanSpeed", "1")
+    //setFanSpeed(1)
+}
+
+def setFanSpeed(speed){
+	log.debug "Fan Speed '${speed}'"
+	setProperty("fanSpeed", "${speed}")
+}
+
+def fanLevel(speed) {
+	log.debug "Fan LEVEL '${speed}'"
+	setProperty("fanSpeed", "${speed}")
+}
+
+//def setBypass(bypass){
+//	log.debug "bypass '${bypass}'"
+//	setProperty("bypass", "${bypass}")
+//}
 
 def sendCommand(options, _callback){
 	def myhubAction = new physicalgraph.device.HubAction(options, null, [callback: _callback])
@@ -55,7 +83,7 @@ def sendCommand(options, _callback){
 }
 
 def refresh() {
-	// TODO: handle 'refresh' command
+	log.debug "Executing 'refresh'"
 	try{
 		def options = [
 			"method": "GET",
@@ -67,7 +95,7 @@ def refresh() {
 		]
 		sendCommand(options, refreshCallback)
 	} catch(e) {
-		log.error "Error!!! ${e}"
+		log.error "Refresh Error!!! ${e}"
 	}
 }
 
@@ -76,7 +104,10 @@ def refreshCallback(physicalgraph.device.HubResponse hubResponse) {
 	try {
 		msg = parseLanMessage(hubResponse.description)
 		log.debug msg.json
+
 		updateProperty("switch", msg.json.property.switch)
+		updateProperty("fanSpeed", msg.json.property.fanSpeed)
+		//updateProperty("bypass", msg.json.property.bypass)
 	} catch (e) {
 		log.error("Exception caught while parsing data: "+e)
 	}
@@ -93,11 +124,33 @@ def setPath(String path){
 }
 
 def updateProperty(propertyName, propertyValue) {
-	sendEvent(name:propertyName, value:propertyValue)
+	log.debug "updateProperty >> ${propertyName}, ${propertyValue}"
+	switch(propertyName) {
+		case "switch":
+		//case "bypass":
+			sendEvent(name:propertyName, value:propertyValue)
+			break
+		case "fanSpeed":
+			sendEvent(name:propertyName, value:propertyValue)
+			if (propertyValue == "0") {
+				sendEvent(name:"switch", value:"off")
+			} else {
+				sendEvent(name:"switch", value:"on")
+			}
+			//if (propertyValue == "4") {
+			//	sendEvent(name: "fanSpeed", value: 3)
+			//} else {
+			//	sendEvent(name: "fanSpeed", value: propertyValue)
+            //}
+			break
+		default:
+			log.debug "UNKNOWN PROPERTY!! ${propertyName}"
+	}
 }
 
 def setProperty(String name, String value) {
 	try{    
+	log.debug "setProperty >> ${name}, ${value}"
 		def options = [
 			"method": "PUT",
 			"path": state.path + "/" + name + "/" + value,
